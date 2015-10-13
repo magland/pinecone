@@ -29,8 +29,6 @@ end;
 
 use_srun=1;
 if (use_srun)
-    opts.num_jobs=10;
-    
     cmd=sprintf('/mnt/xfs1/home/magland/dev/ap2d/ap2d_batch.sh %d %d %s %s %s %g %d %d %s %s %s %s %s %g %g %g', ...
         opts.num_jobs,opts.num_threads,[working_path,'/u.mda'],[working_path,'/recon'],[working_path,'/residerr'],opts.tolerance,opts.max_iterations,opts.num_tries,...
         [working_path,'/reference.mda'],[working_path,'/mask.mda'],[working_path,'/init_re.mda'],[working_path,'/init_im.mda'],[working_path,'/init_stdevs.mda'],...
@@ -86,7 +84,8 @@ info.recon=recon;
 end
 
 function ret=make_temporary_path
-path1=[tempdir,'/pinecone'];
+path1=[fileparts(mfilename('fullpath')),'/pinecone'];
+%path1=[tempdir,'/pinecone'];
 mkdir_jfm(path1);
 num=1;
 while 1

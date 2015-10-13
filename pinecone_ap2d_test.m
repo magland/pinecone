@@ -17,13 +17,15 @@ opts.noise=0;
 
 opts.num_tries=6;
 %opts.num_cycles=4;
-opts.num_threads=6;
+opts.num_threads=12;
 opts.tolerance=1e-8;
 opts.oversamp=1.5;
 opts.max_iterations=50000;
 opts.alpha1=0.9;
 opts.alpha2=0.95;
 opts.beta=1.5;
+
+opts.num_jobs=20;
 
 if (strcmp(test,'basic'))
     opts.tolerance=1e-8;
@@ -84,7 +86,7 @@ reference_full(Mfull-M+1:Mfull-M+N,Mfull-M+1:Mfull-M+N)=reference;
 reference_full=reference_full+randn(size(reference_full))*opts.noise;
 
 % Apodize?
-%reference_full=real(ifft2b(apodize(fft2b(reference_full),24,Nfull)));
+reference_full=real(ifft2b(apodize(fft2b(reference_full),24,Nfull)));
 
 % Set the support mask
 use_support_constraint=0;
