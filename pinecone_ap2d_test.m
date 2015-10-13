@@ -116,33 +116,49 @@ fff1=figure('Name',opts.title,'NumberTitle','off');
 plot(1:10); set(fff1,'position',[600,100,1500,600]);
 
 fff2=figure('Name',opts.title,'NumberTitle','off');
-plot(1:10); set(fff2,'position',[600,700,600,600]);
+plot(1:10); set(fff2,'position',[600,700,700,600]);
+
+fff3=figure('Name',opts.title,'NumberTitle','off');
+plot(1:10); set(fff2,'position',[1400,700,700,600]);
 
 all_resid=[];
 all_error=[];
 
 opts0.init=(randn(size(u))+i*randn(size(u))).*u;
-best_resid=inf;
-best_error=inf;
-best_f=zeros(size(u));
+best_resids=[];
+best_errors=[];
+best_fs=zeros(size(u,1),size(u,2),0);
 for j=1:10000
     opts0.init_stdevs=u*2;
     [f,resid,error,info]=pinecone_ap2d(u,opts0);
     all_resid=[all_resid,resid];
     all_error=[all_error,error];
-    if (resid(1)<best_resid)    
-        opts0.init=fft2b(f);
-        opts0.init_stdevs=u*2;
-        best_resid=resid(1);
-        best_error=error(1);
-        best_f=f;
-    end;
+    
+    candidate_resids=[best_resids;resid];
+    candidate_errors=[best_errors;error];
+    candidate_fs=cat(3,best_fs,info.recon);
+    
+    [candidate_resids,sort_inds]=sort(candidate_resids);
+    candidate_errors=candidate_errors(sort_inds);
+    candidate_fs=candidate_fs(:,:,sort_inds);
+    
+    L=min(length(candidate_resids),10);
+    best_resids=candidate_resids(1:L);
+    best_errors=candidate_errors(1:L);
+    best_fs=candidate_fs(:,:,1:L);
+    
+    opts0.init=fft2b(best_fs(:,:,randi(min(L,5))));
+    
     figure(fff1);
     plot(all_resid,all_error,'b.'); hold on;
+    plot(best_resids,best_errors,'b.','markersize',20); hold on;
     plot(resid,error,'r.','markersize',20); hold off;
     figure(fff2);
-    imagesc(best_f); colormap('gray');
-    title(sprintf('resid = %g, err = %g',best_resid,best_error));
+    imagesc(best_fs(:,:,1)); colormap('gray');
+    title(sprintf('resid = %g, err = %g',best_resids(1),best_errors(1)));
+    figure(fff3);
+    stdevs0=min(1,sqrt(var(best_fs,[],3)));
+    imagesc(stdevs0); colormap('parula'); colorbar;
     drawnow;
 end;
 

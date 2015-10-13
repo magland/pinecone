@@ -27,7 +27,7 @@ if (isfield(opts,'init'))
     writemda(opts.init_stdevs,[working_path,'/init_stdevs.mda']);
 end;
 
-use_srun=1;
+use_srun=0;
 if (use_srun)
     cmd=sprintf('/mnt/xfs1/home/magland/dev/ap2d/ap2d_batch.sh %d %d %s %s %s %g %d %d %s %s %s %s %s %g %g %g', ...
         opts.num_jobs,opts.num_threads,[working_path,'/u.mda'],[working_path,'/recon'],[working_path,'/residerr'],opts.tolerance,opts.max_iterations,opts.num_tries,...
