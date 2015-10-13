@@ -12,38 +12,65 @@ if (~isfield(opts,'alpha2')) opts.alpha2=0.95; end;
 if (~isfield(opts,'beta')) opts.beta=1.5; end;
 if (~isfield(opts,'mask')) opts.mask=ones(size(u)); end;
 
+if (~isfield(opts,'num_jobs')) opts.num_jobs=1; end;
+
 working_path=make_temporary_path;
 
 writemda(u,[working_path,'/u.mda']);
 writemda(opts.mask,[working_path,'/mask.mda']);
-cmd=sprintf('%s %s ',opts.ap2d_exe,[working_path,'/u.mda']);
-cmd=[cmd,sprintf('--out-recon=%s ',[working_path,'/recon.mda'])];
-cmd=[cmd,sprintf('--out-resid-err=%s ',[working_path,'/residerr.mda'])];
-cmd=[cmd,sprintf('--tol=%g ',opts.tolerance)];
-cmd=[cmd,sprintf('--maxit=%d ',opts.max_iterations)];
-cmd=[cmd,sprintf('--count=%d ',opts.num_tries)];
 if (isfield(opts,'reference'))
     writemda(opts.reference,[working_path,'/reference.mda']);
-    cmd=[cmd,sprintf('--ref=%s ',[working_path,'/reference.mda'])];
 end;
-cmd=[cmd,sprintf('--num-threads=%d ',opts.num_threads)];
-cmd=[cmd,sprintf('--mask=%s ',[working_path,'/mask.mda'])];
 if (isfield(opts,'init'))
     writemda(real(opts.init),[working_path,'/init_re.mda']);
     writemda(imag(opts.init),[working_path,'/init_im.mda']);
     writemda(opts.init_stdevs,[working_path,'/init_stdevs.mda']);
-    cmd=[cmd,sprintf('--init-re=%s ',[working_path,'/init_re.mda'])];
-    cmd=[cmd,sprintf('--init-im=%s ',[working_path,'/init_im.mda'])];
-    cmd=[cmd,sprintf('--init-stdevs=%s ',[working_path,'/init_stdevs.mda'])];
 end;
-cmd=[cmd,sprintf('--alpha1=%g ',opts.alpha1)];
-cmd=[cmd,sprintf('--alpha2=%g ',opts.alpha2)];
-cmd=[cmd,sprintf('--beta=%g ',opts.beta)];
-disp(cmd);
-system(cmd);
 
-recon=readmda([working_path,'/recon.mda']);
-residerr=readmda([working_path,'/residerr.mda']);
+use_srun=1;
+if (use_srun)
+    opts.num_jobs=10;
+    
+    cmd=sprintf('/mnt/xfs1/home/magland/dev/ap2d/ap2d_batch.sh %d %d %s %s %s %g %d %d %s %s %s %s %s %g %g %g', ...
+        opts.num_jobs,opts.num_threads,[working_path,'/u.mda'],[working_path,'/recon'],[working_path,'/residerr'],opts.tolerance,opts.max_iterations,opts.num_tries,...
+        [working_path,'/reference.mda'],[working_path,'/mask.mda'],[working_path,'/init_re.mda'],[working_path,'/init_im.mda'],[working_path,'/init_stdevs.mda'],...
+        opts.alpha1,opts.alpha2,opts.beta);
+    disp(cmd);
+    system(cmd);
+    
+    recon=zeros(size(u,1),size(u,2),0);
+    residerr=zeros(0,2);
+    for j=1:opts.num_jobs
+        recon0=readmda([working_path,sprintf('/recon-%d.mda',j)]);
+        recon(:,:,end+1:end+size(recon0,3))=recon0;
+        residerr0=readmda([working_path,sprintf('/residerr-%d.mda',j)]);
+        residerr(end+1:end+size(residerr0,1),:)=residerr0;
+    end;
+else
+    cmd=sprintf('%s %s ',opts.ap2d_exe,[working_path,'/u.mda']);
+    cmd=[cmd,sprintf('--out-recon=%s ',[working_path,'/recon.mda'])];
+    cmd=[cmd,sprintf('--out-resid-err=%s ',[working_path,'/residerr.mda'])];
+    cmd=[cmd,sprintf('--tol=%g ',opts.tolerance)];
+    cmd=[cmd,sprintf('--maxit=%d ',opts.max_iterations)];
+    cmd=[cmd,sprintf('--count=%d ',opts.num_tries)];
+    if (isfield(opts,'reference'))
+        cmd=[cmd,sprintf('--ref=%s ',[working_path,'/reference.mda'])];
+    end;
+    cmd=[cmd,sprintf('--num-threads=%d ',opts.num_threads)];
+    cmd=[cmd,sprintf('--mask=%s ',[working_path,'/mask.mda'])];
+    if (isfield(opts,'init'))
+        cmd=[cmd,sprintf('--init-re=%s ',[working_path,'/init_re.mda'])];
+        cmd=[cmd,sprintf('--init-im=%s ',[working_path,'/init_im.mda'])];
+        cmd=[cmd,sprintf('--init-stdevs=%s ',[working_path,'/init_stdevs.mda'])];
+    end;
+    cmd=[cmd,sprintf('--alpha1=%g ',opts.alpha1)];
+    cmd=[cmd,sprintf('--alpha2=%g ',opts.alpha2)];
+    cmd=[cmd,sprintf('--beta=%g ',opts.beta)];
+    disp(cmd);
+    system(cmd);
+    recon=readmda([working_path,'/recon.mda']);
+    residerr=readmda([working_path,'/residerr.mda']);
+end;
 
 resid=residerr(:,1);
 error=residerr(:,2);
