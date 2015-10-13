@@ -25,6 +25,7 @@ opts.alpha1=0.9;
 opts.alpha2=0.95;
 opts.beta=1.5;
 
+opts.use_srun=1;
 opts.num_jobs=20;
 
 if (strcmp(test,'basic'))
@@ -86,10 +87,10 @@ reference_full(Mfull-M+1:Mfull-M+N,Mfull-M+1:Mfull-M+N)=reference;
 reference_full=reference_full+randn(size(reference_full))*opts.noise;
 
 % Apodize?
-reference_full=real(ifft2b(apodize(fft2b(reference_full),24,Nfull)));
+%reference_full=real(ifft2b(apodize(fft2b(reference_full),24,Nfull)));
 
 % Set the support mask
-use_support_constraint=0;
+use_support_constraint=1;
 if (use_support_constraint)
     mask=zeros(Nfull,Nfull);
     mask(Mfull-M+1:Mfull-M+N,Mfull-M+1:Mfull-M+N)=1;
@@ -112,14 +113,17 @@ drawnow;
 
 opts0=opts;
 
+%images
 fff1=figure('Name',opts.title,'NumberTitle','off');
-plot(1:10); set(fff1,'position',[600,100,1500,600]);
+plot(1:10); set(fff1,'position',[100,100,1000,400]);
 
+%resid/error plot
 fff2=figure('Name',opts.title,'NumberTitle','off');
-plot(1:10); set(fff2,'position',[600,700,700,600]);
+plot(1:10); set(fff2,'position',[100,650,1000,400]);
 
+%variance maps
 fff3=figure('Name',opts.title,'NumberTitle','off');
-plot(1:10); set(fff2,'position',[1400,700,700,600]);
+plot(1:10); set(fff3,'position',[1105,100,1000,400]);
 
 all_resid=[];
 all_error=[];
@@ -150,20 +154,28 @@ for j=1:10000
     opts0.init=fft2b(best_fs(:,:,randi(min(L,5))));
     
     figure(fff1);
+    ax=subplot(1,2,1);
+    imagesc(opts0.reference); colormap(ax,'gray');
+    ax=subplot(1,2,2);
+    imagesc(best_fs(:,:,1)); colormap(ax,'gray');
+    title(sprintf('resid = %g, err = %g',best_resids(1),best_errors(1)));
+    
+    figure(fff2);
+    ax=subplot(1,1,1);
     plot(all_resid,all_error,'b.'); hold on;
     plot(best_resids,best_errors,'b.','markersize',20); hold on;
     plot(resid,error,'r.','markersize',20); hold off;
-    figure(fff2);
-    imagesc(best_fs(:,:,1)); colormap('gray');
-    title(sprintf('resid = %g, err = %g',best_resids(1),best_errors(1)));
+    
     figure(fff3);
-    stdevs0=min(1,sqrt(var(best_fs,[],3)));
-    imagesc(stdevs0); colormap('parula'); colorbar;
+    ax=subplot(1,2,1);
+    stdevs0=sqrt(var(best_fs,[],3));
+    imagesc(stdevs0); colormap(ax,'parula'); colorbar(ax);
+    ax=subplot(1,2,2);
+    stdevs0=min(1,sqrt(var(fft2b(best_fs),[],3))./u);
+    imagesc(stdevs0); colormap(ax,'parula'); colorbar(ax);
+    
     drawnow;
 end;
-
-
-
 
 end
 

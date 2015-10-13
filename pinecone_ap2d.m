@@ -12,6 +12,7 @@ if (~isfield(opts,'alpha2')) opts.alpha2=0.95; end;
 if (~isfield(opts,'beta')) opts.beta=1.5; end;
 if (~isfield(opts,'mask')) opts.mask=ones(size(u)); end;
 
+if (~isfield(opts,'use_srun')) opts.use_srun=0; end;
 if (~isfield(opts,'num_jobs')) opts.num_jobs=1; end;
 
 working_path=make_temporary_path;
@@ -27,8 +28,7 @@ if (isfield(opts,'init'))
     writemda(opts.init_stdevs,[working_path,'/init_stdevs.mda']);
 end;
 
-use_srun=0;
-if (use_srun)
+if (opts.use_srun)
     cmd=sprintf('/mnt/xfs1/home/magland/dev/ap2d/ap2d_batch.sh %d %d %s %s %s %g %d %d %s %s %s %s %s %g %g %g', ...
         opts.num_jobs,opts.num_threads,[working_path,'/u.mda'],[working_path,'/recon'],[working_path,'/residerr'],opts.tolerance,opts.max_iterations,opts.num_tries,...
         [working_path,'/reference.mda'],[working_path,'/mask.mda'],[working_path,'/init_re.mda'],[working_path,'/init_im.mda'],[working_path,'/init_stdevs.mda'],...
