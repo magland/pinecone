@@ -5,10 +5,10 @@ function pinecone_ap2d_test
 opts.rng_seed=1;
 
 %test='basic'; example='two_gaussians'; N=64; 
-test='basic'; example='5'; N=64;
+%test='basic'; example='5'; N=64;
 %test='basic'; example='4'; N=128;
 %test='basic'; example='4.01'; N=64;
-%test='basic'; example='tensor_product'; N=64;
+test='basic'; example='tensor_product'; N=64;
 %test='basic'; example='tensor_product_plus_square'; N=64;
 %test='importance_of_oversampling'; example='4'; N=16;
 %test='damping_needed_for_compute_time'; example='4'; N=32;
