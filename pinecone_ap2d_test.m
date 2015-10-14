@@ -1,36 +1,35 @@
 function pinecone_ap2d_test
 
-%close all;
+close all;
 
 opts.rng_seed=1;
 
 %test='basic'; example='two_gaussians'; N=64; 
-%test='basic'; example='5'; N=64;
-%test='basic'; example='4'; N=128;
+test='basic'; example='5'; N=32;
+%test='basic'; example='4'; N=32;
+%test='basic'; example='4.1'; N=64;
 %test='basic'; example='4.01'; N=64;
-test='basic'; example='tensor_product'; N=64;
+%test='basic'; example='tensor_product'; N=64;
 %test='basic'; example='tensor_product_plus_square'; N=64;
 %test='importance_of_oversampling'; example='4'; N=16;
 %test='damping_needed_for_compute_time'; example='4'; N=32;
 
-opts.noise=0;
+opts.noise=0.01;
 
-opts.num_tries=6;
+opts.num_tries=4;
 %opts.num_cycles=4;
-opts.num_threads=12;
-opts.tolerance=1e-8;
+opts.num_threads=8;
+opts.tolerance=1e-5;
 opts.oversamp=1.5;
 opts.max_iterations=50000;
 opts.alpha1=0.9;
 opts.alpha2=0.95;
 opts.beta=1.5;
 
-opts.use_srun=1;
+opts.use_srun=0;
 opts.num_jobs=20;
 
 if (strcmp(test,'basic'))
-    opts.tolerance=1e-8;
-    
     opts.num_threads=6;
     run_test(N,example,opts);
 elseif (strcmp(test,'importance_of_oversampling'))
@@ -115,7 +114,7 @@ opts0=opts;
 
 %images
 fff1=figure('Name',opts.title,'NumberTitle','off');
-plot(1:10); set(fff1,'position',[100,100,1000,400]);
+plot(1:10); set(fff1,'position',[100,100,1500,400]);
 
 %resid/error plot
 fff2=figure('Name',opts.title,'NumberTitle','off');
@@ -123,7 +122,7 @@ plot(1:10); set(fff2,'position',[100,650,1000,400]);
 
 %variance maps
 fff3=figure('Name',opts.title,'NumberTitle','off');
-plot(1:10); set(fff3,'position',[1105,100,1000,400]);
+plot(1:10); set(fff3,'position',[1105,100,1000,800]);
 
 all_resid=[];
 all_error=[];
@@ -132,6 +131,8 @@ opts0.init=(randn(size(u))+i*randn(size(u))).*u;
 best_resids=[];
 best_errors=[];
 best_fs=zeros(size(u,1),size(u,2),0);
+last_best_resid=inf;
+num_steps_with_no_improvement=0;
 for j=1:10000
     opts0.init_stdevs=u*2;
     [f,resid,error,info]=pinecone_ap2d(u,opts0);
@@ -151,28 +152,67 @@ for j=1:10000
     best_errors=candidate_errors(1:L);
     best_fs=candidate_fs(:,:,1:L);
     
+    if (best_resids(1)<last_best_resid)
+        num_steps_with_no_improvement=0;
+    else
+        num_steps_with_no_improvement=num_steps_with_no_improvement+1;
+    end;
+    last_best_resid=best_resids(1);
+    
+    if (num_steps_with_no_improvement>=5)
+        num_steps_with_no_improvement=0;
+        opts0.tolerance=opts0.tolerance/2;
+    end;
+    
     opts0.init=fft2b(best_fs(:,:,randi(min(L,5))));
     
     figure(fff1);
-    ax=subplot(1,2,1);
-    imagesc(opts0.reference); colormap(ax,'gray');
-    ax=subplot(1,2,2);
+    ax=subplot(1,3,1);
+    imagesc(opts0.reference); colormap(ax,'gray'); title('Reference');
+    ax=subplot(1,3,2);
     imagesc(best_fs(:,:,1)); colormap(ax,'gray');
-    title(sprintf('resid = %g, err = %g',best_resids(1),best_errors(1)));
+    title('Best recon');
+    set(fff1,'Name',sprintf('resid = %g, err = %g',best_resids(1),best_errors(1)));
     
     figure(fff2);
     ax=subplot(1,1,1);
-    plot(all_resid,all_error,'b.'); hold on;
-    plot(best_resids,best_errors,'b.','markersize',20); hold on;
-    plot(resid,error,'r.','markersize',20); hold off;
+    loglog(all_resid,all_error,'b.'); hold on;
+    loglog(best_resids,best_errors,'b.','markersize',20); hold on;
+    loglog(resid,error,'r.','markersize',20); hold off;
+    title('Error vs. Resid');
+    set(fff2,'Name',sprintf('tolerance = %g\n',opts0.tolerance));
     
     figure(fff3);
-    ax=subplot(1,2,1);
+    ax=subplot(2,2,1);
     stdevs0=sqrt(var(best_fs,[],3));
     imagesc(stdevs0); colormap(ax,'parula'); colorbar(ax);
-    ax=subplot(1,2,2);
+    title('Variation - image space');
+    ax=subplot(2,2,2);
     stdevs0=min(1,sqrt(var(fft2b(best_fs),[],3))./u);
     imagesc(stdevs0); colormap(ax,'parula'); colorbar(ax);
+    title('Normalized variation - Fourier space');
+    ax=subplot(2,2,3);
+    imagesc(abs(mean(best_fs,3)-opts0.reference)); colormap(ax,'parula'); colorbar(ax);
+    title('Error - image space');
+    ax=subplot(2,2,4);
+    tmp=min(1,abs(mean(fft2b(best_fs),3)-fft2b(opts0.reference))./u);
+    imagesc(tmp); colormap(ax,'parula'); colorbar(ax);
+    title('Normalized error - Fourier space');
+    
+    figure(fff1);
+    subplot(1,3,3);
+    aaa=fft2b(best_fs(:,:,1));
+    [GXX,GYY]=ndgrid((1:Nfull)-Mfull+1,(1:Nfull)-Mfull+1);
+    GRR=sqrt(GXX.^2+GYY.^2);
+    for kk=1:Nfull
+        inds=find(round(GRR)==kk);
+        if (length(inds)>0)
+            avg=mean(stdevs0(inds));
+            aaa(inds)=aaa(inds)*(1-avg);
+        end;
+    end;
+    imagesc(real(ifft2b(aaa))); colormap('gray');
+    title('Best auto-smoothed recon');
     
     drawnow;
 end;
@@ -366,6 +406,11 @@ elseif (strcmp(example,'4'))
         rr=(rand*2-1)*0.2;
         X=X+(abs(xx-cc(1))<=rr).*(abs(yy-cc(2))<=rr);
     end;
+elseif (strcmp(example,'4.1'))
+    X=create_example('4',xx,yy);
+    cc=[0,0];
+    rr=0.8;
+    X=X+exp(-((xx-cc(1)).^2+(yy-cc(2)).^2)/(rr/2)^2).*((xx-cc(1)).^2+(yy-cc(2)).^2<=rr^2);
 elseif (strcmp(example,'5'))
     X=zeros(size(xx));
     for kk=1:50
